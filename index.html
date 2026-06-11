@@ -151,11 +151,18 @@
   .map-desc{font-size:min(3.4vw,13px);opacity:.7;margin-top:2px;}
   .map-arrow{font-size:min(7vw,28px);color:var(--brass-l);}
   .lock-tag{font-size:min(3.2vw,12px);background:#333;padding:3px 8px;border-radius:8px;color:#999;margin-left:auto;}
+  .progress-badge{margin-top:6px;font-size:min(3.4vw,12px);font-weight:800;color:var(--brass-l);
+    background:rgba(0,0,0,.4);display:inline-block;padding:3px 10px;border-radius:10px;}
+  .progress-badge.cleared{color:#fff;background:linear-gradient(90deg,#5fc97a,#3e9554);}
 
   /* ============ すごろくマップ ============ */
-  #board{
-    background:linear-gradient(180deg,var(--sky-deep) 0%, var(--sky-mid) 70%, #0a1428 100%);
-  }
+  #board{background:linear-gradient(180deg,var(--sky-deep) 0%, var(--sky-mid) 70%, #0a1428 100%);}
+  #board.stage-shakai{background:linear-gradient(180deg,#2c4a1a 0%,#5a7a3a 70%,#1a2810 100%);}
+  #board.stage-rika{background:linear-gradient(180deg,#1a0a2a 0%,#4a2858 70%,#0a0518 100%);}
+  #board.stage-shakai .stage-name{color:#cfff8a;text-shadow:0 0 12px rgba(180,240,120,.6);}
+  #board.stage-rika .stage-name{color:#dab8ff;text-shadow:0 0 12px rgba(200,150,255,.7);}
+  #board.stage-shakai .calc-bg-num{color:#cfff8a;font-family:Georgia,serif;}
+  #board.stage-rika .calc-bg-num{color:#dab8ff;font-family:Georgia,serif;}
   .board-header{position:absolute;top:env(safe-area-inset-top, 0);left:0;right:0;
     padding:14px 18px;display:flex;justify-content:space-between;align-items:center;z-index:10;}
   .back-btn{background:rgba(0,0,0,.5);border:2px solid var(--brass);
@@ -228,10 +235,12 @@
   .quiz-q{font-size:min(6vw,22px);font-weight:800;color:var(--paper);
     background:rgba(0,0,0,.4);border-radius:14px;padding:18px 16px;line-height:1.4;}
   .quiz-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .quiz-choices.vertical{grid-template-columns:1fr;gap:8px;}
   .choice{padding:14px 8px;font-size:min(4.5vw,17px);font-weight:800;
     color:var(--paper);background:linear-gradient(180deg,#4a3c2c,#2e251a);
     border:2px solid var(--brass-d);border-radius:14px;cursor:pointer;
-    transition:transform .1s ease;}
+    transition:transform .1s ease;word-break:break-word;line-height:1.35;min-height:54px;}
+  .quiz-choices.vertical .choice{text-align:left;padding:14px 16px;font-size:min(4.2vw,16px);}
   .choice:active{transform:scale(.97);}
   .choice.correct{background:linear-gradient(180deg,#5fc97a,#3e9554);border-color:#2a6b3a;color:#fff;
     animation:correct-pulse .5s ease;}
@@ -360,21 +369,21 @@
       </div>
       <div class="map-arrow">▶</div>
     </div>
-    <div class="map-card locked">
+    <div class="map-card" data-map="shakai">
       <div class="map-icon">🗾</div>
       <div class="map-info">
         <div class="map-name">しゃかいの くに</div>
         <div class="map-desc">岡山と 日本の ふしぎ</div>
       </div>
-      <div class="lock-tag">じゅんび中</div>
+      <div class="map-arrow">▶</div>
     </div>
-    <div class="map-card locked">
+    <div class="map-card" data-map="rika">
       <div class="map-icon">🔬</div>
       <div class="map-info">
         <div class="map-name">りかの くに</div>
         <div class="map-desc">星と じっけん の せかい</div>
       </div>
-      <div class="lock-tag">じゅんび中</div>
+      <div class="map-arrow">▶</div>
     </div>
   </div>
 </section>
@@ -504,6 +513,23 @@ function makeCalc() {
     choices: shuffle([...set].map(String))
   };
 }
+
+/* ========== 問題プールからの出題（しゃかい / りか）========== */
+const Q_QUEUE = { shakai: [], rika: [] };
+function pickFromPool(poolKey) {
+  const pool = poolKey === 'shakai' ? SHAKAI : RIKA;
+  if (Q_QUEUE[poolKey].length === 0) {
+    Q_QUEUE[poolKey] = shuffle(pool.slice());
+  }
+  const item = Q_QUEUE[poolKey].pop();
+  return {
+    text: item.q,
+    ans:  item.a,
+    choices: shuffle([item.a, ...item.w])
+  };
+}
+const makeShakai = () => pickFromPool('shakai');
+const makeRika   = () => pickFromPool('rika');
 
 /* ========== Web Audio: SE 6種 + BGM ループ ========== */
 const SOUND = { on:false };
@@ -688,13 +714,14 @@ function showScreen(id) {
   $(id).classList.add('active');
 }
 
+function goSelect() { refreshSelectProgress(); showScreen('select'); }
 $('startBtn').addEventListener('click', () => {
   ensureAudio();
   se('tap'); se('appear');
-  showScreen('select');
+  goSelect();
 });
-$('backBtn').addEventListener('click', () => { ensureAudio(); se('tap'); showScreen('select'); });
-$('toSelectBtn').addEventListener('click', () => { ensureAudio(); se('tap'); showScreen('select'); });
+$('backBtn').addEventListener('click', () => { ensureAudio(); se('tap'); goSelect(); });
+$('toSelectBtn').addEventListener('click', () => { ensureAudio(); se('tap'); goSelect(); });
 
 /* マップ選択 → board */
 document.querySelectorAll('.map-card').forEach(card => {
@@ -710,10 +737,30 @@ document.querySelectorAll('.map-card').forEach(card => {
 const STAGE = {
   calc: {
     name: 'けいさんの くに',
+    label: 'けいさんの もんだい',
     cells: 8,
     color: 'calc',
     bgNums: ['7','3','8','+','×','5','2','9'],
+    singleColumn: false,
     makeQ: makeCalc
+  },
+  shakai: {
+    name: 'しゃかいの くに',
+    label: 'しゃかいの もんだい',
+    cells: 8,
+    color: 'shakai',
+    bgNums: ['🗾','⛩','🏯','🌸','北','南','東','西'],
+    singleColumn: true,
+    makeQ: makeShakai
+  },
+  rika: {
+    name: 'りかの くに',
+    label: 'りかの もんだい',
+    cells: 8,
+    color: 'rika',
+    bgNums: ['⭐','🌙','💧','⚡','🔬','🌱','🦋','🌡'],
+    singleColumn: true,
+    makeQ: makeRika
   }
 };
 
@@ -728,16 +775,20 @@ const G = {
 
 function startBoard(mapKey) {
   G.map = STAGE[mapKey];
+  G.mapKey = mapKey;
   G.pos = 0;
   G.medals = 0;
   G.stars = 0;
+  // poolKey 用 queue を毎回シャッフルリセット（同じ問題が連続で出ないため）
+  if (mapKey === 'shakai' || mapKey === 'rika') Q_QUEUE[mapKey] = [];
   $('stageName').textContent = G.map.name;
   $('medalCount').textContent = '⭐ 0';
+  // ステージごとの背景色を #board に適用
+  $('board').classList.remove('stage-calc','stage-shakai','stage-rika');
+  $('board').classList.add('stage-' + mapKey);
   buildBoard();
   showScreen('board');
-  // 駒を始点に
   placePiece();
-  // すすむボタンを「スタート」に
   $('rollBtn').textContent = '🎲 すすむ';
 }
 
@@ -863,7 +914,10 @@ function openQuiz() {
   $('quizQ').textContent = currentQ.text;
   $('quizFeedback').textContent = '';
   $('quizChar').innerHTML = omochi('think');
+  // クイズラベルをステージごとに切替
+  document.querySelector('.quiz-label').textContent = G.map.label;
   const wrap = $('quizChoices');
+  wrap.classList.toggle('vertical', !!G.map.singleColumn);
   wrap.innerHTML = '';
   currentQ.choices.forEach(c => {
     const b = document.createElement('button');
@@ -932,9 +986,42 @@ function burstStars() {
   setTimeout(() => burst.remove(), 1100);
 }
 
+/* ========== 進捗保存（localStorage）========== */
+function getBest() {
+  try { return JSON.parse(localStorage.getItem('omochi-best') || '{}'); }
+  catch(e) { return {}; }
+}
+function saveBest(mapKey, medals) {
+  try {
+    const best = getBest();
+    if ((best[mapKey] || 0) < medals) {
+      best[mapKey] = medals;
+      localStorage.setItem('omochi-best', JSON.stringify(best));
+    }
+  } catch(e) {}
+}
+function refreshSelectProgress() {
+  const best = getBest();
+  document.querySelectorAll('.map-card').forEach(card => {
+    const map = card.dataset.map;
+    if (!map || !STAGE[map]) return;
+    const cells = STAGE[map].cells;
+    const got = best[map] || 0;
+    let badge = card.querySelector('.progress-badge');
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'progress-badge';
+      card.querySelector('.map-info').appendChild(badge);
+    }
+    badge.textContent = `ベスト ⭐ ${got} / ${cells}`;
+    if (got >= cells) badge.classList.add('cleared');
+  });
+}
+
 /* ========== クリア画面 ========== */
 function showClear() {
   ensureAudio(); se('clear');
+  saveBest(G.mapKey, G.medals);
   $('clearChar').innerHTML = omochi('cheer');
   // 星評価: メダル6+ で星3、4-5 で星2、それ以下で星1
   const starCount = G.medals >= 6 ? 3 : G.medals >= 4 ? 2 : 1;
