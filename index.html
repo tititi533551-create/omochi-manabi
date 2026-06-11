@@ -295,11 +295,14 @@
     100%{transform:translateY(110vh) rotate(720deg);opacity:.5;}
   }
 
-  /* ============ 音トグル ============ */
-  .sound-toggle{position:fixed;top:calc(env(safe-area-inset-top, 0) + 12px);right:12px;
-    background:rgba(0,0,0,.5);border:2px solid var(--brass);
-    width:42px;height:42px;border-radius:50%;font-size:18px;
-    display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:99;color:var(--paper);}
+  /* ============ 音トグル（右下隅・⭐スコアとの干渉回避）============ */
+  .sound-toggle{position:fixed;
+    bottom:calc(env(safe-area-inset-bottom, 0) + 14px);right:14px;
+    background:rgba(0,0,0,.6);border:2px solid var(--brass);
+    width:46px;height:46px;border-radius:50%;font-size:20px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:99;
+    color:var(--paper);box-shadow:0 4px 10px rgba(0,0,0,.5);}
+  .sound-toggle:active{transform:scale(.92);}
 
   /* ============ オモチ画像 (useImage=true 時) ============ */
   .omochi-img{display:block;height:auto;pointer-events:none;
@@ -502,11 +505,147 @@ function makeCalc() {
   };
 }
 
-/* ========== 音 (フェーズC本格対応、今は最小限のミュート) ========== */
+/* ========== Web Audio: SE 6種 + BGM ループ ========== */
 const SOUND = { on:false };
+let audioCtx = null, masterGain = null, sfxGain = null, musicGain = null;
+let bgmTimer = null, bgmBar = 0;
+
+function initAudio() {
+  if (audioCtx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audioCtx = new AC();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0; // 初期ミュート
+  masterGain.connect(audioCtx.destination);
+  sfxGain = audioCtx.createGain();   sfxGain.gain.value = 0.55; sfxGain.connect(masterGain);
+  musicGain = audioCtx.createGain(); musicGain.gain.value = 0.22; musicGain.connect(masterGain);
+}
+// iOS Safari: ユーザータップ後でないと AudioContext が走らない。各 UI 操作で呼ぶ。
+function ensureAudio() {
+  if (!audioCtx) initAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+// 単音再生（target を sfxGain/musicGain で振り分け、pitch slide 対応）
+function tone(freq, dur, type, gain, when, slideTo, target) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + (when || 0);
+  const osc = audioCtx.createOscillator();
+  const g   = audioCtx.createGain();
+  osc.type = type || 'triangle';
+  osc.frequency.setValueAtTime(freq, t);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g); g.connect(target || sfxGain);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+// ノイズ系（クリック音）
+function clickBurst(when) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + (when || 0);
+  const buf = audioCtx.createBuffer(1, 1024, audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0; i<1024; i++) d[i] = (Math.random()*2-1) * Math.exp(-i/80);
+  const src = audioCtx.createBufferSource(); src.buffer = buf;
+  const g = audioCtx.createGain(); g.gain.value = 0.18;
+  src.connect(g); g.connect(sfxGain);
+  src.start(t);
+}
+// SE ディスパッチ
+function se(name) {
+  if (!audioCtx || !SOUND.on) return;
+  switch(name) {
+    case 'correct':
+      tone(523.25, 0.10, 'triangle', 0.50, 0.00);    // C5
+      tone(659.25, 0.10, 'triangle', 0.50, 0.10);    // E5
+      tone(783.99, 0.22, 'triangle', 0.50, 0.20);    // G5
+      tone(1046.5, 0.30, 'sine',     0.20, 0.20);    // 上ハモリ
+      break;
+    case 'wrong':
+      tone(329.63, 0.18, 'triangle', 0.30, 0.00);    // E4
+      tone(261.63, 0.26, 'triangle', 0.30, 0.12);    // C4 (柔らかい下降)
+      break;
+    case 'step':
+      tone(420, 0.07, 'triangle', 0.35, 0.00, 680);  // ぴょこっ上昇
+      tone(220, 0.06, 'sine',     0.20, 0.06, 120);  // 着地
+      break;
+    case 'tap':
+      tone(1320, 0.025, 'sine', 0.25, 0.00);
+      clickBurst(0);
+      break;
+    case 'clear':
+      // ファンファーレ C-E-G-C ＋ 持続コード
+      tone(523.25, 0.12, 'triangle', 0.45, 0.00);
+      tone(659.25, 0.12, 'triangle', 0.45, 0.12);
+      tone(783.99, 0.12, 'triangle', 0.45, 0.24);
+      tone(1046.5, 0.60, 'triangle', 0.55, 0.36);
+      tone(659.25, 0.60, 'sine',     0.25, 0.36);   // ハモリ
+      tone(392.00, 0.60, 'sine',     0.18, 0.36);   // ベース
+      break;
+    case 'appear':
+      tone(250, 0.10, 'sine', 0.40, 0.00, 900);     // ポンッ
+      tone(600, 0.18, 'triangle', 0.20, 0.05, 1200);
+      break;
+  }
+}
+// BGM: 4小節ループ（C-Am-F-G）。ベース+アルペジオ+メロディの簡素版
+function startBGM() {
+  if (bgmTimer || !audioCtx) return;
+  const beat = 0.42; // 1拍の長さ秒（少しゆっくり目）
+  // 4小節 × 4拍 = 16拍
+  const PROG = [
+    { bass: 130.81, arp: [261.63, 329.63, 392.00, 329.63] }, // C
+    { bass: 110.00, arp: [220.00, 261.63, 329.63, 261.63] }, // Am
+    { bass: 174.61, arp: [220.00, 261.63, 349.23, 261.63] }, // F
+    { bass: 196.00, arp: [246.94, 293.66, 392.00, 293.66] }, // G
+  ];
+  // やさしいメロディ（4小節通し、16音）
+  const MELODY = [
+    659.25, 783.99, 880.00, 783.99,   // C 小節
+    659.25, 783.99, 659.25, 523.25,   // Am 小節
+    698.46, 783.99, 880.00, 783.99,   // F 小節
+    587.33, 698.46, 783.99, 587.33    // G 小節
+  ];
+  bgmBar = 0;
+  const playBar = () => {
+    if (!SOUND.on || !audioCtx) { bgmTimer = null; return; }
+    const chord = PROG[bgmBar % 4];
+    // ベース：2分音符×2
+    tone(chord.bass, beat*2*0.85, 'sine', 0.35, 0.00, null, musicGain);
+    tone(chord.bass, beat*2*0.85, 'sine', 0.30, beat*2, null, musicGain);
+    // アルペジオ
+    chord.arp.forEach((f, i) => {
+      tone(f, beat*0.55, 'triangle', 0.18, i*beat, null, musicGain);
+    });
+    // メロディ
+    for (let i=0; i<4; i++) {
+      const mfreq = MELODY[(bgmBar%4)*4 + i];
+      tone(mfreq, beat*0.65, 'sine', 0.28, i*beat + beat*0.10, null, musicGain);
+    }
+    bgmBar++;
+    bgmTimer = setTimeout(playBar, beat * 4 * 1000);
+  };
+  playBar();
+}
+function stopBGM() {
+  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+}
+function setMuted(muted) {
+  ensureAudio();
+  if (!audioCtx) return;
+  const target = muted ? 0 : 0.75;
+  masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+  masterGain.gain.linearRampToValueAtTime(target, audioCtx.currentTime + 0.08);
+  if (muted) stopBGM();
+  else startBGM();
+}
 $('soundBtn').addEventListener('click', () => {
   SOUND.on = !SOUND.on;
   $('soundBtn').textContent = SOUND.on ? '🔊' : '🔇';
+  setMuted(!SOUND.on);
+  if (SOUND.on) se('tap');
 });
 
 /* ========== オープニング: タイトル文字を1文字ずつアニメで ========== */
@@ -550,15 +689,18 @@ function showScreen(id) {
 }
 
 $('startBtn').addEventListener('click', () => {
+  ensureAudio();
+  se('tap'); se('appear');
   showScreen('select');
 });
-$('backBtn').addEventListener('click', () => showScreen('select'));
-$('toSelectBtn').addEventListener('click', () => showScreen('select'));
+$('backBtn').addEventListener('click', () => { ensureAudio(); se('tap'); showScreen('select'); });
+$('toSelectBtn').addEventListener('click', () => { ensureAudio(); se('tap'); showScreen('select'); });
 
 /* マップ選択 → board */
 document.querySelectorAll('.map-card').forEach(card => {
   card.addEventListener('click', () => {
     if (card.classList.contains('locked')) return;
+    ensureAudio(); se('tap');
     const map = card.dataset.map;
     startBoard(map);
   });
@@ -702,6 +844,7 @@ function placePiece() {
 /* すすむ ボタン: 次のマスへ移動 → クイズ */
 $('rollBtn').addEventListener('click', () => {
   if (G.pos >= G.map.cells + 1) return; // すでにゴール
+  ensureAudio(); se('step');
   G.pos++;
   placePiece();
   // ゴールの場合
@@ -734,8 +877,10 @@ function openQuiz() {
 function handleAnswer(btn, val) {
   // 既に答えていたら無視
   if (document.querySelector('.choice.correct,.choice.wrong')) return;
+  ensureAudio();
   const correct = (val === currentQ.ans);
   if (correct) {
+    se('correct');
     btn.classList.add('correct');
     $('quizFeedback').textContent = 'やった！ ⭐+1';
     $('quizFeedback').className = 'quiz-feedback feedback-good';
@@ -752,6 +897,7 @@ function handleAnswer(btn, val) {
       }
     }, 900);
   } else {
+    se('wrong');
     btn.classList.add('wrong');
     // 正解ボタンを示す
     document.querySelectorAll('.choice').forEach(b => {
@@ -788,6 +934,7 @@ function burstStars() {
 
 /* ========== クリア画面 ========== */
 function showClear() {
+  ensureAudio(); se('clear');
   $('clearChar').innerHTML = omochi('cheer');
   // 星評価: メダル6+ で星3、4-5 で星2、それ以下で星1
   const starCount = G.medals >= 6 ? 3 : G.medals >= 4 ? 2 : 1;
@@ -821,7 +968,7 @@ function showClear() {
   }
 }
 
-$('againBtn').addEventListener('click', () => startBoard('calc'));
+$('againBtn').addEventListener('click', () => { ensureAudio(); se('tap'); startBoard('calc'); });
 
 /* ========== iOS 100vh 対策 ========== */
 function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight*0.01)+'px'); }
