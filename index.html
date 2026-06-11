@@ -11,366 +11,809 @@
 <meta name="description" content="オモチと一緒に算数・社会・理科を学ぶブラウザゲーム">
 <title>オモチの まなび ぼうけん</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;}
   :root{
     --brass:#c8a04a; --brass-d:#9a7628; --brass-l:#e8c97a;
-    --ink:#2a2018; --paper:#f4ead2; --neon:#48e0d0; --pink:#ff7aa8;
+    --ink:#2a2018; --paper:#f4ead2;
+    --neon:#48e0d0; --pink:#ff7aa8;
     --good:#5fc97a; --bad:#e8745f;
-    --calc:#48e0d0; --shakai:#f0a847; --rika:#7ec97e;
+    --calc:#48e0d0;
+    --sky-deep:#0a1428;
+    --sky-mid:#1a3060;
   }
-  html,body{height:100%;}
+  html,body{height:100%;overflow:hidden;}
   body{
-    font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
-    background:radial-gradient(circle at 50% -10%, #3a3020, #1c1812 60%);
+    font-family:-apple-system,"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","Yu Gothic","Rounded Mplus 1c",sans-serif;
     color:var(--paper);
-    display:flex; align-items:center; justify-content:center;
-    min-height:100%; padding:16px; overflow-x:hidden;
+    background:#0a0608;
+    position:fixed;width:100%;height:100%;
+    overscroll-behavior:none;touch-action:manipulation;
   }
-  .frame{
-    width:100%; max-width:460px;
-    background:linear-gradient(180deg,#2c241a,#221b13);
-    border:4px solid var(--brass); border-radius:22px;
-    box-shadow:0 0 0 2px var(--brass-d), 0 18px 50px rgba(0,0,0,.6),
-               inset 0 0 30px rgba(200,160,74,.08);
-    padding:22px 20px 26px; position:relative;
+  /* ============ 共通 screen 切替 ============ */
+  .screen{
+    position:fixed;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    transition:opacity .4s ease;
+    opacity:0;pointer-events:none;
   }
-  .gear{position:absolute;width:34px;height:34px;border-radius:50%;
-    border:5px dotted var(--brass-d);opacity:.5;}
-  .gear.tl{top:-12px;left:-12px;} .gear.tr{top:-12px;right:-12px;}
-  .gear.bl{bottom:-12px;left:-12px;} .gear.br{bottom:-12px;right:-12px;}
+  .screen.active{opacity:1;pointer-events:auto;}
+  /* ============ 背景パーティクル（共通） ============ */
+  .particles{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0;}
+  .particle{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--brass-l);
+    box-shadow:0 0 10px var(--brass-l);opacity:.7;animation:float 8s linear infinite;}
+  @keyframes float{
+    0%{transform:translateY(110vh) scale(.4);opacity:0;}
+    10%{opacity:.7;}
+    90%{opacity:.7;}
+    100%{transform:translateY(-10vh) scale(1);opacity:0;}
+  }
+  /* ============ オープニング ============ */
+  #opening{
+    background:radial-gradient(ellipse at 50% 60%, #2a2018 0%, #0a0608 70%);
+  }
+  /* 回転歯車（3層） */
+  .gears{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);width:300px;height:300px;}
+  .gear{position:absolute;left:50%;top:50%;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--brass-l), var(--brass-d) 70%);
+    box-shadow:0 0 40px rgba(200,160,74,.5), inset -5px -5px 15px rgba(0,0,0,.4);
+  }
+  .gear::before,.gear::after{content:'';position:absolute;inset:18%;border-radius:50%;
+    background:radial-gradient(circle, #2a2018, #0a0608);
+    box-shadow:inset 0 0 20px rgba(0,0,0,.8);
+  }
+  .gear::after{inset:42%;background:var(--brass-l);box-shadow:0 0 8px var(--brass-l);}
+  .gear.big{width:240px;height:240px;margin:-120px 0 0 -120px;animation:spin 14s linear infinite;opacity:.35;}
+  .gear.mid{width:170px;height:170px;margin:-85px 0 0 -85px;animation:spin 9s linear infinite reverse;opacity:.55;}
+  .gear.sml{width:110px;height:110px;margin:-55px 0 0 -55px;animation:spin 5s linear infinite;opacity:.85;}
+  @keyframes spin{to{transform:rotate(360deg);}}
 
-  h1{font-size:20px;text-align:center;color:var(--brass-l);
-    letter-spacing:1px;margin-bottom:4px;text-shadow:0 1px 0 #000;}
-  .sub{text-align:center;font-size:12px;color:#b8a888;margin-bottom:14px;}
+  /* タイトル */
+  .title-stage{position:absolute;left:0;right:0;top:54%;text-align:center;z-index:3;}
+  .title{
+    font-size:min(11vw,52px);font-weight:900;letter-spacing:.06em;
+    color:var(--brass-l);text-shadow:0 2px 0 var(--brass-d), 0 0 16px rgba(232,201,122,.7);
+    display:inline-block;line-height:1.15;
+  }
+  .title .ch{display:inline-block;opacity:0;transform:translateY(40px) scale(.4) rotate(-10deg);
+    animation:pop-in .55s cubic-bezier(.34,1.56,.64,1) forwards;}
+  .title .ch.sp{width:.4em;}
+  @keyframes pop-in{
+    0%{opacity:0;transform:translateY(40px) scale(.4) rotate(-10deg);}
+    60%{opacity:1;transform:translateY(-8px) scale(1.15) rotate(4deg);}
+    100%{opacity:1;transform:translateY(0) scale(1) rotate(0);}
+  }
+  .subtitle{
+    margin-top:14px;font-size:min(4vw,18px);color:var(--paper);opacity:0;
+    animation:fade-in 1s ease 1.4s forwards;
+    text-shadow:0 0 8px rgba(0,0,0,.6);
+  }
+  @keyframes fade-in{to{opacity:.8;}}
 
-  .hud{display:flex;justify-content:space-between;align-items:center;
-    font-size:13px;margin-bottom:12px;gap:8px;}
-  .hud .pill{background:#1a140e;border:1px solid var(--brass-d);
-    border-radius:999px;padding:5px 12px;color:var(--brass-l);}
-  .hud .pill b{color:var(--neon);}
-  .hud .pill .heart{color:var(--pink);}
+  /* オープニングのオモチ */
+  .opener-char{
+    position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);
+    font-size:min(22vw,120px);z-index:4;
+    opacity:0;animation:char-appear 1s cubic-bezier(.34,1.56,.64,1) .8s forwards,
+      char-wave 2s ease-in-out 2s infinite;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.6));
+  }
+  @keyframes char-appear{
+    0%{opacity:0;transform:translate(-50%,40%) scale(.2) rotate(-20deg);}
+    60%{opacity:1;transform:translate(-50%,-60%) scale(1.1) rotate(10deg);}
+    100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0);}
+  }
+  @keyframes char-wave{
+    0%,100%{transform:translate(-50%,-50%) rotate(0);}
+    25%{transform:translate(-50%,-55%) rotate(-8deg);}
+    75%{transform:translate(-50%,-55%) rotate(8deg);}
+  }
 
-  .stage{background:#15100a;border:2px solid var(--brass-d);
-    border-radius:16px;padding:18px 14px;text-align:center;position:relative;
-    min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  /* スタートボタン */
+  .start-btn{
+    position:absolute;left:50%;bottom:14%;transform:translateX(-50%);
+    padding:18px 42px;font-size:min(6vw,24px);font-weight:900;
+    color:var(--ink);background:linear-gradient(180deg,var(--brass-l),var(--brass));
+    border:3px solid var(--brass-d);border-radius:999px;cursor:pointer;
+    box-shadow:0 6px 0 var(--brass-d), 0 12px 30px rgba(0,0,0,.5);
+    opacity:0;animation:btn-in .6s ease 2.2s forwards, btn-pulse 1.6s ease 3s infinite;
+    z-index:5;
+  }
+  @keyframes btn-in{
+    0%{opacity:0;transform:translateX(-50%) translateY(40px) scale(.6);}
+    100%{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}
+  }
+  @keyframes btn-pulse{
+    0%,100%{box-shadow:0 6px 0 var(--brass-d), 0 12px 30px rgba(0,0,0,.5), 0 0 0 0 rgba(232,201,122,.55);}
+    50%{box-shadow:0 6px 0 var(--brass-d), 0 12px 30px rgba(0,0,0,.5), 0 0 0 22px rgba(232,201,122,0);}
+  }
+  .start-btn:active{transform:translateX(-50%) translateY(4px);box-shadow:0 2px 0 var(--brass-d),0 4px 10px rgba(0,0,0,.4);animation:none;}
 
-  .mochi{font-size:66px;line-height:1;filter:drop-shadow(0 0 10px rgba(72,224,208,.35));transition:transform .15s;}
-  .mochi.happy{animation:bounce .5s;}
-  .mochi.sad{animation:shake .4s;}
-  @keyframes bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(-6px)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  /* ============ マップ選択 ============ */
+  #select{
+    background:radial-gradient(ellipse at 50% 0%, #2a2030 0%, #0a0608 70%);
+    padding:24px;gap:18px;
+  }
+  .select-title{font-size:min(7vw,28px);font-weight:900;color:var(--brass-l);
+    text-shadow:0 2px 0 var(--brass-d);text-align:center;margin-bottom:12px;}
+  .map-list{display:flex;flex-direction:column;gap:14px;width:100%;max-width:420px;}
+  .map-card{
+    display:flex;align-items:center;gap:14px;padding:18px 20px;
+    border:3px solid var(--brass-d);border-radius:22px;cursor:pointer;
+    background:linear-gradient(135deg,rgba(72,224,208,.18),rgba(0,0,0,.4));
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 4px 0 var(--brass-d), 0 8px 16px rgba(0,0,0,.4);
+  }
+  .map-card.locked{opacity:.45;background:linear-gradient(135deg,#222,#111);border-color:#444;}
+  .map-card:not(.locked):active{transform:translateY(3px);box-shadow:0 1px 0 var(--brass-d),0 2px 6px rgba(0,0,0,.4);}
+  .map-icon{font-size:min(12vw,48px);width:60px;text-align:center;}
+  .map-info{flex:1;}
+  .map-name{font-size:min(5vw,20px);font-weight:900;color:var(--paper);}
+  .map-desc{font-size:min(3.4vw,13px);opacity:.7;margin-top:2px;}
+  .map-arrow{font-size:min(7vw,28px);color:var(--brass-l);}
+  .lock-tag{font-size:min(3.2vw,12px);background:#333;padding:3px 8px;border-radius:8px;color:#999;margin-left:auto;}
 
-  .speech{margin-top:8px;font-size:14px;color:var(--paper);min-height:20px;}
-  .q{font-size:30px;font-weight:700;color:var(--brass-l);margin:8px 4px 2px;
-    letter-spacing:1px;text-shadow:0 2px 0 #000;line-height:1.35;}
-  .q.calc{font-size:40px;letter-spacing:2px;}
+  /* ============ すごろくマップ ============ */
+  #board{
+    background:linear-gradient(180deg,var(--sky-deep) 0%, var(--sky-mid) 70%, #0a1428 100%);
+  }
+  .board-header{position:absolute;top:env(safe-area-inset-top, 0);left:0;right:0;
+    padding:14px 18px;display:flex;justify-content:space-between;align-items:center;z-index:10;}
+  .back-btn{background:rgba(0,0,0,.5);border:2px solid var(--brass);
+    color:var(--paper);padding:8px 14px;border-radius:14px;font-weight:800;font-size:14px;cursor:pointer;}
+  .stage-name{font-size:min(5vw,18px);font-weight:900;color:var(--neon);
+    text-shadow:0 0 12px rgba(72,224,208,.7);}
+  .medal-count{background:rgba(0,0,0,.5);border:2px solid var(--brass);
+    padding:6px 12px;border-radius:14px;font-weight:800;font-size:14px;color:var(--brass-l);}
 
-  .choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
-  .choices.col1{grid-template-columns:1fr;}
-  .choice{
+  /* 背景の数字 (けいさんの国だけ) */
+  .calc-bg-num{position:absolute;font-size:80px;font-weight:900;color:var(--neon);
+    opacity:.05;pointer-events:none;font-family:Georgia,serif;}
+
+  /* 道とマス */
+  .board-area{position:relative;width:100%;flex:1;max-width:480px;margin:0 auto;}
+  .path-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .cell{
+    position:absolute;width:56px;height:56px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, var(--brass-l), var(--brass) 60%, var(--brass-d));
+    border:3px solid var(--brass-d);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:22px;color:var(--ink);
+    box-shadow:0 4px 0 var(--brass-d), 0 8px 16px rgba(0,0,0,.6), inset 0 -3px 8px rgba(0,0,0,.3);
+    transform:translate(-50%,-50%);
+  }
+  .cell.done{background:radial-gradient(circle at 30% 30%, #d8d8d8, #888);border-color:#555;color:#444;}
+  .cell.current{animation:cell-glow 1.2s ease-in-out infinite;}
+  @keyframes cell-glow{
+    0%,100%{box-shadow:0 4px 0 var(--brass-d), 0 8px 16px rgba(0,0,0,.6), 0 0 0 0 rgba(232,201,122,.6), inset 0 -3px 8px rgba(0,0,0,.3);}
+    50%{box-shadow:0 4px 0 var(--brass-d), 0 8px 16px rgba(0,0,0,.6), 0 0 0 14px rgba(232,201,122,0), inset 0 -3px 8px rgba(0,0,0,.3);}
+  }
+  .flag{position:absolute;transform:translate(-50%,-100%);font-size:34px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6));}
+  .flag.start{}
+  .flag.goal{animation:flag-wave 1.5s ease-in-out infinite;}
+  @keyframes flag-wave{0%,100%{transform:translate(-50%,-100%) rotate(-3deg);}50%{transform:translate(-50%,-100%) rotate(3deg);}}
+
+  /* 駒 */
+  .piece{position:absolute;font-size:42px;z-index:5;
+    transform:translate(-50%,-90%);
+    transition:left .5s cubic-bezier(.5,1.6,.5,1), top .5s cubic-bezier(.5,1.6,.5,1);
+    filter:drop-shadow(0 4px 8px rgba(0,0,0,.7));
+  }
+  .piece.idle{animation:piece-idle 1.6s ease-in-out infinite;}
+  @keyframes piece-idle{0%,100%{transform:translate(-50%,-90%) translateY(0);}50%{transform:translate(-50%,-90%) translateY(-6px);}}
+
+  .board-cta{
+    position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0));transform:translateX(-50%);
+    padding:16px 40px;font-size:20px;font-weight:900;
+    color:var(--ink);background:linear-gradient(180deg,var(--neon),#2db8a5);
+    border:3px solid #1a8077;border-radius:999px;cursor:pointer;
+    box-shadow:0 6px 0 #1a8077, 0 10px 24px rgba(0,0,0,.5), 0 0 18px rgba(72,224,208,.6);
+    z-index:11;animation:cta-bob 1.4s ease-in-out infinite;
+  }
+  @keyframes cta-bob{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-4px);}}
+  .board-cta:active{transform:translateX(-50%) translateY(4px);box-shadow:0 2px 0 #1a8077,0 4px 8px rgba(0,0,0,.4);animation:none;}
+
+  /* ============ クイズモーダル ============ */
+  #quiz{background:rgba(0,0,0,.85);backdrop-filter:blur(6px);}
+  .quiz-box{
+    width:min(92vw,440px);background:linear-gradient(180deg,#3a2f24,#241c14);
+    border:4px solid var(--brass);border-radius:26px;padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.1);
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .quiz-head{display:flex;align-items:center;gap:12px;}
+  .quiz-char{font-size:54px;animation:char-bob 1.6s ease-in-out infinite;
+    filter:drop-shadow(0 3px 5px rgba(0,0,0,.5));}
+  @keyframes char-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  .quiz-label{flex:1;font-size:13px;color:var(--brass-l);font-weight:800;letter-spacing:.1em;}
+  .quiz-q{font-size:min(6vw,22px);font-weight:800;color:var(--paper);
+    background:rgba(0,0,0,.4);border-radius:14px;padding:18px 16px;line-height:1.4;}
+  .quiz-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .choice{padding:14px 8px;font-size:min(4.5vw,17px);font-weight:800;
+    color:var(--paper);background:linear-gradient(180deg,#4a3c2c,#2e251a);
+    border:2px solid var(--brass-d);border-radius:14px;cursor:pointer;
+    transition:transform .1s ease;}
+  .choice:active{transform:scale(.97);}
+  .choice.correct{background:linear-gradient(180deg,#5fc97a,#3e9554);border-color:#2a6b3a;color:#fff;
+    animation:correct-pulse .5s ease;}
+  .choice.wrong{background:linear-gradient(180deg,#e8745f,#a83f30);border-color:#6e2a20;color:#fff;}
+  @keyframes correct-pulse{0%{transform:scale(1);}50%{transform:scale(1.1);}100%{transform:scale(1);}}
+  .quiz-feedback{text-align:center;font-size:18px;font-weight:900;min-height:24px;}
+  .feedback-good{color:var(--good);}
+  .feedback-bad{color:var(--bad);}
+
+  /* 星エフェクト（正解時） */
+  .star-burst{position:fixed;left:50%;top:50%;pointer-events:none;z-index:100;}
+  .star-burst .s{position:absolute;font-size:28px;animation:star-fly 1s ease-out forwards;}
+  @keyframes star-fly{
+    0%{opacity:1;transform:translate(0,0) scale(.4) rotate(0);}
+    100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.4) rotate(360deg);}
+  }
+
+  /* ============ クリア演出 ============ */
+  #clear{
+    background:radial-gradient(ellipse at 50% 50%, #4a3a18 0%, #0a0608 80%);
+  }
+  .clear-title{font-size:min(13vw,60px);font-weight:900;
     background:linear-gradient(180deg,var(--brass-l),var(--brass));
-    color:var(--ink);font-size:18px;font-weight:800;
-    border:none;border-bottom:4px solid var(--brass-d);border-radius:14px;
-    padding:15px 8px;cursor:pointer;transition:transform .08s, filter .1s;line-height:1.3;
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 4px 12px rgba(232,201,122,.4);
+    animation:title-bounce 1s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes title-bounce{
+    0%{opacity:0;transform:scale(.3);}
+    60%{opacity:1;transform:scale(1.2);}
+    100%{opacity:1;transform:scale(1);}
   }
-  .choice.num{font-size:26px;}
-  .choice:active{transform:translateY(3px);border-bottom-width:1px;}
-  .choice.correct{background:linear-gradient(180deg,#86e29a,var(--good));border-bottom-color:#3a8a4f;}
-  .choice.wrong{background:linear-gradient(180deg,#f0a596,var(--bad));border-bottom-color:#a8412f;}
-  .choice:disabled{cursor:default;opacity:.95;}
+  .clear-char{font-size:min(28vw,140px);margin:18px 0;
+    animation:clear-jump 1.2s ease-in-out infinite;
+    filter:drop-shadow(0 8px 16px rgba(0,0,0,.7));}
+  @keyframes clear-jump{
+    0%,100%{transform:translateY(0) rotate(0);}
+    25%{transform:translateY(-30px) rotate(-8deg);}
+    50%{transform:translateY(0) rotate(0);}
+    75%{transform:translateY(-30px) rotate(8deg);}
+  }
+  .stars-row{display:flex;gap:12px;margin:10px 0 18px;}
+  .star{font-size:42px;opacity:.2;transform:scale(.6);
+    transition:opacity .3s ease, transform .3s ease;}
+  .star.on{opacity:1;transform:scale(1);animation:star-pop .5s ease;}
+  @keyframes star-pop{0%{transform:scale(.6) rotate(-30deg);}60%{transform:scale(1.4) rotate(15deg);}100%{transform:scale(1) rotate(0);}}
+  .clear-medal{font-size:min(5vw,18px);color:var(--brass-l);font-weight:900;margin-bottom:24px;}
+  .clear-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;padding:0 24px;}
+  .clear-btn{padding:14px 28px;font-size:16px;font-weight:900;
+    color:var(--ink);background:linear-gradient(180deg,var(--brass-l),var(--brass));
+    border:3px solid var(--brass-d);border-radius:999px;cursor:pointer;
+    box-shadow:0 4px 0 var(--brass-d),0 6px 12px rgba(0,0,0,.5);}
+  .clear-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--brass-d),0 2px 4px rgba(0,0,0,.4);}
+  .clear-btn.sub{background:linear-gradient(180deg,#666,#333);border-color:#111;color:var(--paper);box-shadow:0 4px 0 #111,0 6px 12px rgba(0,0,0,.5);}
 
-  .bar{height:10px;background:#15100a;border-radius:999px;margin-top:16px;overflow:hidden;border:1px solid var(--brass-d);}
-  .bar > i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--neon),var(--brass-l));transition:width .4s;}
+  /* 紙吹雪 */
+  .confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50;}
+  .conf{position:absolute;width:10px;height:14px;top:-20px;
+    animation:conf-fall 3s linear forwards;}
+  @keyframes conf-fall{
+    0%{transform:translateY(0) rotate(0);opacity:1;}
+    100%{transform:translateY(110vh) rotate(720deg);opacity:.5;}
+  }
 
-  .center-btn{display:block;margin:18px auto 0;
-    background:linear-gradient(180deg,var(--neon),#2bbfb0);
-    color:#06302c;font-weight:800;font-size:17px;
-    border:none;border-bottom:4px solid #1d8a7e;border-radius:14px;
-    padding:14px 30px;cursor:pointer;}
-  .center-btn:active{transform:translateY(3px);border-bottom-width:1px;}
+  /* ============ 音トグル ============ */
+  .sound-toggle{position:fixed;top:calc(env(safe-area-inset-top, 0) + 12px);right:12px;
+    background:rgba(0,0,0,.5);border:2px solid var(--brass);
+    width:42px;height:42px;border-radius:50%;font-size:18px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:99;color:var(--paper);}
 
-  /* 教科えらび */
-  .subjects{display:grid;grid-template-columns:1fr;gap:12px;margin:6px 0 4px;}
-  .subj{display:flex;align-items:center;gap:14px;cursor:pointer;
-    background:#1a140e;border:2px solid var(--brass-d);border-radius:16px;
-    padding:14px 16px;text-align:left;transition:transform .08s;}
-  .subj:active{transform:scale(.98);}
-  .subj .ico{font-size:34px;}
-  .subj .tx b{display:block;font-size:18px;color:var(--brass-l);}
-  .subj .tx span{font-size:12px;color:#b8a888;}
-  .subj.calc{border-color:var(--calc);}
-  .subj.shakai{border-color:var(--shakai);}
-  .subj.rika{border-color:var(--rika);}
-
-  .lv-picker{display:flex;gap:8px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap;}
-  .lv{background:#1a140e;border:2px solid var(--brass-d);color:var(--brass-l);
-    border-radius:12px;padding:9px 13px;font-size:13px;cursor:pointer;font-weight:700;}
-  .lv.on{background:var(--brass);color:var(--ink);}
-
-  .big{font-size:50px;}
-  .gold{color:var(--brass-l);}
-  .small{font-size:12px;color:#b8a888;margin-top:8px;}
-  .hint{font-size:12px;color:var(--neon);margin-top:6px;min-height:16px;}
-  .hidden{display:none;}
-  .stars{font-size:26px;letter-spacing:4px;margin:8px 0;}
-  .backline{text-align:center;margin-top:14px;}
-  .backbtn{background:none;border:1px solid var(--brass-d);color:#b8a888;
-    border-radius:999px;padding:7px 16px;font-size:12px;cursor:pointer;}
+  /* 親見せ用フォールバック */
+  @media (max-width:380px){
+    .quiz-q{font-size:18px;}
+    .choice{padding:12px 6px;font-size:15px;}
+  }
 </style>
 </head>
 <body>
-<div class="frame">
-  <div class="gear tl"></div><div class="gear tr"></div>
-  <div class="gear bl"></div><div class="gear br"></div>
 
-  <h1>⚙ オモチの まなび ぼうけん ⚙</h1>
-  <div class="sub" id="topSub">きょうかを えらんで ちょうせん！</div>
+<!-- ============ 共通背景パーティクル ============ -->
+<div class="particles" id="particles"></div>
 
-  <!-- 教科えらび -->
-  <div id="menuView">
-    <div class="stage">
-      <div class="mochi">🐹</div>
-      <div class="speech">どの ステージに いく？</div>
-      <div class="subjects">
-        <button class="subj calc" data-subj="calc">
-          <span class="ico">🔢</span>
-          <span class="tx"><b>けいさん ステージ</b><span>たし算・ひき算・かけ算</span></span>
-        </button>
-        <button class="subj shakai" data-subj="shakai">
-          <span class="ico">🗾</span>
-          <span class="tx"><b>しゃかい ステージ</b><span>都道府県・地図記号・くらし・岡山</span></span>
-        </button>
-        <button class="subj rika" data-subj="rika">
-          <span class="ico">🔬</span>
-          <span class="tx"><b>りか ステージ</b><span>電気・水・星・体・生きもの</span></span>
-        </button>
+<!-- ============ 音トグル ============ -->
+<button class="sound-toggle" id="soundBtn" aria-label="音切替">🔇</button>
+
+<!-- ============ オープニング ============ -->
+<section class="screen active" id="opening">
+  <div class="gears">
+    <div class="gear big"></div>
+    <div class="gear mid"></div>
+    <div class="gear sml"></div>
+  </div>
+  <div class="opener-char" id="openerChar">🐹</div>
+  <div class="title-stage">
+    <div class="title" id="titleText"></div>
+    <div class="subtitle">タップして ぼうけんに でかけよう</div>
+  </div>
+  <button class="start-btn" id="startBtn">▶ ぼうけんスタート</button>
+</section>
+
+<!-- ============ マップ選択 ============ -->
+<section class="screen" id="select">
+  <div class="select-title">どの くにへ いく？</div>
+  <div class="map-list">
+    <div class="map-card" data-map="calc">
+      <div class="map-icon">🔢</div>
+      <div class="map-info">
+        <div class="map-name">けいさんの くに</div>
+        <div class="map-desc">たし算・ひき算・かけ算 で すすめ</div>
       </div>
+      <div class="map-arrow">▶</div>
     </div>
-    <!-- 計算だけ難易度を出す -->
-    <div id="calcLevel" class="hidden">
-      <div class="lv-picker" id="lvPicker">
-        <button class="lv on" data-lv="1">たし・ひき</button>
-        <button class="lv" data-lv="2">かけ算</button>
-        <button class="lv" data-lv="3">ミックス</button>
+    <div class="map-card locked">
+      <div class="map-icon">🗾</div>
+      <div class="map-info">
+        <div class="map-name">しゃかいの くに</div>
+        <div class="map-desc">岡山と 日本の ふしぎ</div>
       </div>
-      <div class="small">むずかしさを えらんで「はじめる」</div>
-      <button class="center-btn" id="calcStartBtn">▶ はじめる</button>
-      <div class="backline"><button class="backbtn" id="calcBack">← もどる</button></div>
+      <div class="lock-tag">じゅんび中</div>
+    </div>
+    <div class="map-card locked">
+      <div class="map-icon">🔬</div>
+      <div class="map-info">
+        <div class="map-name">りかの くに</div>
+        <div class="map-desc">星と じっけん の せかい</div>
+      </div>
+      <div class="lock-tag">じゅんび中</div>
     </div>
   </div>
+</section>
 
-  <!-- ゲーム画面 -->
-  <div id="gameView" class="hidden">
-    <div class="hud">
-      <span class="pill">メダル <b id="score">0</b></span>
-      <span class="pill" id="streakPill">れんぞく <b id="streak">0</b></span>
-      <span class="pill heart" id="hearts">❤❤❤</span>
-    </div>
-    <div class="stage">
-      <div class="mochi" id="mochi">🐹</div>
-      <div class="speech" id="speech"></div>
-      <div class="q" id="question"></div>
-      <div class="hint" id="hint"></div>
-    </div>
-    <div class="choices" id="choices"></div>
-    <div class="bar"><i id="bar"></i></div>
-    <div class="small" id="progress">1 / 10もん</div>
+<!-- ============ すごろくマップ ============ -->
+<section class="screen" id="board">
+  <div class="board-header">
+    <button class="back-btn" id="backBtn">← もどる</button>
+    <div class="stage-name" id="stageName">けいさんの くに</div>
+    <div class="medal-count" id="medalCount">⭐ 0</div>
   </div>
+  <div class="board-area" id="boardArea">
+    <svg class="path-svg" id="pathSvg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+  </div>
+  <button class="board-cta" id="rollBtn">🎲 すすむ</button>
+</section>
 
-  <!-- 結果画面 -->
-  <div id="endView" class="hidden">
-    <div class="stage">
-      <div class="mochi big" id="endMochi">🏆</div>
-      <div class="stars" id="stars">⭐⭐⭐</div>
-      <div class="speech" id="endMsg">クリア！</div>
-      <div class="q gold" id="endScore">メダル 0こ</div>
+<!-- ============ クイズ ============ -->
+<section class="screen" id="quiz">
+  <div class="quiz-box">
+    <div class="quiz-head">
+      <div class="quiz-char" id="quizChar">🐹</div>
+      <div class="quiz-label">けいさんの もんだい</div>
     </div>
-    <button class="center-btn" id="againBtn">↻ もういちど えらぶ</button>
+    <div class="quiz-q" id="quizQ"></div>
+    <div class="quiz-choices" id="quizChoices"></div>
+    <div class="quiz-feedback" id="quizFeedback"></div>
   </div>
-</div>
+</section>
+
+<!-- ============ クリア ============ -->
+<section class="screen" id="clear">
+  <div class="confetti" id="confetti"></div>
+  <div class="clear-title">クリア！</div>
+  <div class="clear-char" id="clearChar">🐹</div>
+  <div class="stars-row" id="starsRow"></div>
+  <div class="clear-medal" id="clearMedal"></div>
+  <div class="clear-btns">
+    <button class="clear-btn" id="againBtn">もういちど</button>
+    <button class="clear-btn sub" id="toSelectBtn">べつのくにへ</button>
+  </div>
+</section>
 
 <script>
-(function(){
-  const S = { subject:'calc', level:1, idx:0, total:10, score:0, streak:0, hearts:3, locked:false, queue:[] };
-  const el = id => document.getElementById(id);
-  function rnd(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
-  function shuffle(a){return a.slice().sort(()=>Math.random()-0.5);}
-
-  // ===== 社会（小4：全国共通＋岡山） =====
-  const SHAKAI = [
-    {q:'岡山県の 県庁が ある 市は どこ？', a:'岡山市', w:['倉敷市','津山市','広島市']},
-    {q:'むかしばなし「ももたろう」で ゆうめいな 県は？', a:'岡山県', w:['香川県','鳥取県','島根県']},
-    {q:'岡山県の くだもので ゆうめいなのは？', a:'マスカット（ぶどう）', w:['みかん','りんご','さくらんぼ']},
-    {q:'倉敷市の 古い 町なみで ゆうめいな 場所は？', a:'美観地区', w:['後楽園','道頓堀','浅草']},
-    {q:'日本で いちばん 数が おおい 「市町村」を まとめた 大きな 区わけを 何という？', a:'都道府県', w:['市区町村','地方','地区']},
-    {q:'都道府県は ぜんぶで いくつ ある？', a:'47', w:['43','50','39']},
-    {q:'「文」の 地図記号は 何を あらわす？', a:'学校', w:['ゆうびん局','病院','こうばん']},
-    {q:'「〒」の 地図記号は 何を あらわす？', a:'ゆうびん局', w:['けいさつ','学校','工場']},
-    {q:'りんごの 形の 地図記号は 何ばたけ？', a:'くだもの畑（果樹園）', w:['田んぼ','森林','茶ばたけ']},
-    {q:'わたしたちが つかった 水は どこで きれいに される？', a:'下水しょり場', w:['ダム','じょう水場','はつでん所']},
-    {q:'川の 水を のめるように する しせつは？', a:'じょう水場', w:['下水しょり場','せいそう工場','ダム']},
-    {q:'もえる ゴミを もやす しせつは？', a:'せいそう工場（ゴミしょり場）', w:['じょう水場','はつでん所','下水しょり場']},
-    {q:'火事の とき 来てくれるのは？', a:'しょうぼうしょ', w:['けいさつしょ','市やくしょ','びょういん']},
-    {q:'事けんや 事こで たすけてくれるのは？', a:'けいさつしょ', w:['しょうぼうしょ','ゆうびん局','学校']},
-    {q:'地図で 上の ほうほうは ふつう どっち？', a:'北', w:['南','東','西']},
-    {q:'瀬戸内海を わたって 岡山と 香川を つなぐ 大きな はしは？', a:'瀬戸大橋', w:['明石海きょう大橋','レインボーブリッジ','日本橋']},
-  ];
-
-  // ===== 理科（小4） =====
-  const RIKA = [
-    {q:'水を ひやして こおらせると 何に なる？', a:'氷（こおり）', w:['水じょう気','ゆげ','あわ']},
-    {q:'水を あたためつづけると ぶくぶく わいて 何に なる？', a:'水じょう気', w:['氷','石','土']},
-    {q:'水が 水じょう気に なって 空気中に でていくことを 何という？', a:'じょうはつ', w:['ねっとう','こおり','こおりどけ']},
-    {q:'かん電池の むきを はんたいに すると モーターは どうなる？', a:'まわる むきが かわる', w:['とまる','こわれる','はやくなる']},
-    {q:'かん電池を 2こ 「直列」に つなぐと 豆電球は どうなる？', a:'明るくなる', w:['暗くなる','消える','色がかわる']},
-    {q:'電気を よく とおす ものは どれ？', a:'鉄や どう（金ぞく）', w:['プラスチック','木','ゴム']},
-    {q:'空気は あたためると どうなる？', a:'ふくらむ（体積がふえる）', w:['ちぢむ','おもくなる','こおる']},
-    {q:'とじこめた 空気を おすと どうなる？', a:'おしちぢめられる', w:['ふえる','きえる','つめたくなる']},
-    {q:'夏の 大三角に ふくまれる 星は？', a:'ベガ（おりひめ星）', w:['北きょく星','金星','太陽']},
-    {q:'夜空で ほとんど うごかない 目じるしの 星は？', a:'北きょく星', w:['シリウス','月','火星']},
-    {q:'月の 形は どう かわる？', a:'日に よって かわる', w:['ずっと まんまる','ぜったい かわらない','三角になる']},
-    {q:'ヘチマや ツルレイシは どの きせつに よく そだつ？', a:'夏', w:['冬','春のはじめ','雪のとき']},
-    {q:'冬に なると 木の ようすは どうなる？', a:'はが おちる ものが ある', w:['花がさく','実がふえる','大きくなる']},
-    {q:'うでを まげるとき うごく かたい ものは？', a:'ほね と きん肉', w:['ひふだけ','血だけ','空気']},
-    {q:'ほねと ほねの つなぎめで まがる ところを 何という？', a:'関節（かんせつ）', w:['ひふ','けっかん','しんぞう']},
-    {q:'すずしくなると ツバメは どうする？', a:'あたたかい 南へ いく', w:['冬みんする','色がかわる','地中にもぐる']},
-    {q:'温度を はかる どうぐは？', a:'温度計', w:['ものさし','はかり','時計']},
-    {q:'water（水）が じめんに しみこんで たまる ところは？', a:'地下水', w:['雲','うみのうえ','空']},
-  ];
-
-  // ---- 計算問題生成 ----
-  function makeCalc(){
-    let kind = S.level===3 ? rnd(1,3) : S.level;
-    let a,b,op,ans;
-    if(kind===1){
-      if(Math.random()<0.5){ a=rnd(2,50); b=rnd(2,50); op='+'; ans=a+b; }
-      else { a=rnd(10,60); b=rnd(1,a); op='−'; ans=a-b; }
-    } else { a=rnd(2,9); b=rnd(2,9); op='×'; ans=a*b; }
-    const set=new Set([ans]); let g=0;
-    while(set.size<4 && g<60){ g++; let v=ans+rnd(1,9)*(Math.random()<0.5?-1:1); if(v>=0) set.add(v); }
-    while(set.size<4) set.add(ans+set.size);
-    return { text:`${a} ${op} ${b} = ?`, ans:String(ans),
-             choices:shuffle([...set].map(String)), calc:true };
+/* ========== キャラ表示の単一切替ポイント =========
+   将来 useImage=true にし、omochi/ に PNG を置けば自動的に画像に切替。
+   表情ごとに別ファイル（idle/happy/think/sad/cheer.png）を当てる構造。
+   ============================================ */
+const CHAR_CONFIG = {
+  useImage: false,
+  imageBase: './omochi/',
+  emoji: '🐹',
+  expressions: {
+    idle:  'idle.png',
+    happy: 'happy.png',
+    think: 'think.png',
+    sad:   'sad.png',
+    cheer: 'cheer.png'
   }
-  // ---- クイズ問題を1問形式に ----
-  function buildQuiz(item){
-    return { text:item.q, ans:item.a, choices:shuffle([item.a,...item.w]), calc:false };
+};
+function omochi(expression='idle') {
+  if (CHAR_CONFIG.useImage) {
+    const f = CHAR_CONFIG.expressions[expression] || CHAR_CONFIG.expressions.idle;
+    return `<img src="${CHAR_CONFIG.imageBase}${f}" alt="オモチ" class="omochi-img omochi-${expression}">`;
   }
+  return CHAR_CONFIG.emoji;
+}
 
-  function buildQueue(){
-    if(S.subject==='calc'){
-      S.queue=Array.from({length:S.total},()=>makeCalc());
-    } else {
-      const pool = S.subject==='shakai'?SHAKAI:RIKA;
-      S.queue = shuffle(pool).slice(0,S.total).map(buildQuiz);
-    }
+/* ========== ユーティリティ ========== */
+const $ = id => document.getElementById(id);
+const rnd = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
+const shuffle = a => a.slice().sort(() => Math.random()-0.5);
+
+/* ========== 問題プール（フェーズB以降で使用、保持） ========== */
+const SHAKAI = [
+  {q:'岡山県の 県庁が ある 市は どこ？', a:'岡山市', w:['倉敷市','津山市','広島市']},
+  {q:'むかしばなし「ももたろう」で ゆうめいな 県は？', a:'岡山県', w:['香川県','鳥取県','島根県']},
+  {q:'岡山県の くだもので ゆうめいなのは？', a:'マスカット（ぶどう）', w:['みかん','りんご','さくらんぼ']},
+  {q:'倉敷市の 古い 町なみで ゆうめいな 場所は？', a:'美観地区', w:['後楽園','道頓堀','浅草']},
+  {q:'都道府県は ぜんぶで いくつ ある？', a:'47', w:['43','50','39']},
+  {q:'「文」の 地図記号は 何を あらわす？', a:'学校', w:['ゆうびん局','病院','こうばん']},
+  {q:'「〒」の 地図記号は 何を あらわす？', a:'ゆうびん局', w:['けいさつ','学校','工場']},
+  {q:'川の 水を のめるように する しせつは？', a:'じょう水場', w:['下水しょり場','せいそう工場','ダム']},
+  {q:'もえる ゴミを もやす しせつは？', a:'せいそう工場（ゴミしょり場）', w:['じょう水場','はつでん所','下水しょり場']},
+  {q:'火事の とき 来てくれるのは？', a:'しょうぼうしょ', w:['けいさつしょ','市やくしょ','びょういん']},
+  {q:'事けんや 事こで たすけてくれるのは？', a:'けいさつしょ', w:['しょうぼうしょ','ゆうびん局','学校']},
+  {q:'地図で 上の ほうほうは ふつう どっち？', a:'北', w:['南','東','西']},
+  {q:'瀬戸内海を わたって 岡山と 香川を つなぐ 大きな はしは？', a:'瀬戸大橋', w:['明石海きょう大橋','レインボーブリッジ','日本橋']}
+];
+const RIKA = [
+  {q:'水を ひやして こおらせると 何に なる？', a:'氷（こおり）', w:['水じょう気','ゆげ','あわ']},
+  {q:'水を あたためつづけると ぶくぶく わいて 何に なる？', a:'水じょう気', w:['氷','石','土']},
+  {q:'水が 水じょう気に なって 空気中に でていくことを 何という？', a:'じょうはつ', w:['ねっとう','こおり','こおりどけ']},
+  {q:'かん電池の むきを はんたいに すると モーターは どうなる？', a:'まわる むきが かわる', w:['とまる','こわれる','はやくなる']},
+  {q:'かん電池を 2こ 「直列」に つなぐと 豆電球は どうなる？', a:'明るくなる', w:['暗くなる','消える','色がかわる']},
+  {q:'電気を よく とおす ものは どれ？', a:'鉄や どう（金ぞく）', w:['プラスチック','木','ゴム']},
+  {q:'空気は あたためると どうなる？', a:'ふくらむ（体積がふえる）', w:['ちぢむ','おもくなる','こおる']},
+  {q:'とじこめた 空気を おすと どうなる？', a:'おしちぢめられる', w:['ふえる','きえる','つめたくなる']},
+  {q:'夏の 大三角に ふくまれる 星は？', a:'ベガ（おりひめ星）', w:['北きょく星','金星','太陽']},
+  {q:'夜空で ほとんど うごかない 目じるしの 星は？', a:'北きょく星', w:['シリウス','月','火星']},
+  {q:'ヘチマや ツルレイシは どの きせつに よく そだつ？', a:'夏', w:['冬','春のはじめ','雪のとき']},
+  {q:'冬に なると 木の ようすは どうなる？', a:'はが おちる ものが ある', w:['花がさく','実がふえる','大きくなる']},
+  {q:'うでを まげるとき うごく かたい ものは？', a:'ほね と きん肉', w:['ひふだけ','血だけ','空気']},
+  {q:'ほねと ほねの つなぎめで まがる ところを 何という？', a:'関節（かんせつ）', w:['ひふ','けっかん','しんぞう']},
+  {q:'すずしくなると ツバメは どうする？', a:'あたたかい 南へ いく', w:['冬みんする','色がかわる','地中にもぐる']},
+  {q:'温度を はかる どうぐは？', a:'温度計', w:['ものさし','はかり','時計']}
+];
+
+/* ========== 計算問題 自動生成（けいさんの くに 用） ========== */
+function makeCalc() {
+  const kind = rnd(1,3); // 1:+ 2:- 3:×
+  let a,b,op,ans;
+  if (kind===1) { a=rnd(2,40); b=rnd(2,40); op='+'; ans=a+b; }
+  else if (kind===2) { a=rnd(10,60); b=rnd(1,a); op='−'; ans=a-b; }
+  else { a=rnd(2,9); b=rnd(2,9); op='×'; ans=a*b; }
+  const set = new Set([ans]);
+  let guard = 0;
+  while (set.size<4 && guard<60) {
+    guard++;
+    const v = ans + rnd(1,9)*(Math.random()<0.5?-1:1);
+    if (v>=0) set.add(v);
   }
-
-  const PRAISE=['せいかい！','すごい！','てんさい！','ばっちり！','やったね！','その調子！'];
-  const CHEER =['おしい！','だいじょうぶ','つぎ いこう','がんばれ！','ドンマイ！'];
-
-  function showQuestion(){
-    S.locked=false;
-    const p=S.queue[S.idx];
-    el('question').textContent=p.text;
-    el('question').className = 'q'+(p.calc?' calc':'');
-    el('speech').textContent=`${S.idx+1}もんめ！`;
-    el('hint').textContent='';
-    el('mochi').className='mochi';
-    el('progress').textContent=`${S.idx+1} / ${S.total}もん`;
-    el('bar').style.width=(S.idx/S.total*100)+'%';
-
-    const wrap=el('choices'); wrap.innerHTML='';
-    wrap.className='choices'+(p.calc?'':' col1'); // 文章は1列で読みやすく
-    p.choices.forEach(c=>{
-      const b=document.createElement('button');
-      b.className='choice'+(p.calc?' num':'');
-      b.textContent=c;
-      b.onclick=()=>answer(b,c,p.ans);
-      wrap.appendChild(b);
-    });
-  }
-
-  function answer(btn,val,correctVal){
-    if(S.locked) return; S.locked=true;
-    const correct=(val===correctVal);
-    [...document.querySelectorAll('.choice')].forEach(b=>{
-      b.disabled=true;
-      if(b.textContent===correctVal) b.classList.add('correct');
-    });
-    if(correct){
-      btn.classList.add('correct'); S.score++; S.streak++;
-      el('mochi').className='mochi happy';
-      el('speech').textContent=PRAISE[rnd(0,PRAISE.length-1)]+(S.streak>=3?' 🔥':'');
-    } else {
-      btn.classList.add('wrong'); S.streak=0; S.hearts--;
-      el('mochi').className='mochi sad';
-      el('speech').textContent=CHEER[rnd(0,CHEER.length-1)];
-      el('hint').textContent=`こたえ：${correctVal}`;
-    }
-    el('score').textContent=S.score;
-    el('streak').textContent=S.streak;
-    el('hearts').textContent='❤'.repeat(Math.max(0,S.hearts))||'🩶';
-
-    setTimeout(()=>{
-      S.idx++;
-      if(S.idx>=S.total || S.hearts<=0) endGame();
-      else showQuestion();
-    }, correct?800:1600);
-  }
-
-  function endGame(){
-    el('gameView').classList.add('hidden');
-    el('endView').classList.remove('hidden');
-    const rate=S.score/S.total;
-    el('stars').textContent = rate>=0.9?'⭐⭐⭐':rate>=0.6?'⭐⭐☆':'⭐☆☆';
-    el('endMochi').textContent = S.hearts<=0?'😺':(rate>=0.9?'🏆':'🐹');
-    el('endMsg').textContent = S.hearts<=0?'またチャレンジしてね！'
-      : rate>=0.9?'パーフェクトに ちかい！すごい！'
-      : rate>=0.6?'よくがんばったね！':'れんしゅう すれば もっといけるよ！';
-    el('endScore').textContent=`メダル ${S.score}こ`;
-    el('bar').style.width='100%';
-  }
-
-  function startGame(){
-    S.idx=0; S.score=0; S.streak=0; S.hearts=3; S.locked=false;
-    buildQueue();
-    el('score').textContent=0; el('streak').textContent=0; el('hearts').textContent='❤❤❤';
-    el('menuView').classList.add('hidden');
-    el('endView').classList.add('hidden');
-    el('gameView').classList.remove('hidden');
-    showQuestion();
-  }
-
-  // ---- メニュー制御 ----
-  document.querySelectorAll('.subj').forEach(b=>{
-    b.onclick=()=>{
-      S.subject=b.dataset.subj;
-      if(S.subject==='calc'){
-        el('calcLevel').classList.remove('hidden');
-        document.querySelector('.subjects').classList.add('hidden');
-      } else {
-        startGame();
-      }
-    };
-  });
-  el('lvPicker').addEventListener('click',e=>{
-    const b=e.target.closest('.lv'); if(!b) return;
-    document.querySelectorAll('.lv').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on'); S.level=Number(b.dataset.lv);
-  });
-  el('calcStartBtn').onclick=startGame;
-  el('calcBack').onclick=()=>{
-    el('calcLevel').classList.add('hidden');
-    document.querySelector('.subjects').classList.remove('hidden');
+  while (set.size<4) set.add(ans + set.size);
+  return {
+    text: `${a} ${op} ${b} = ?`,
+    ans: String(ans),
+    choices: shuffle([...set].map(String))
   };
-  el('againBtn').onclick=()=>{
-    el('endView').classList.add('hidden');
-    el('calcLevel').classList.add('hidden');
-    document.querySelector('.subjects').classList.remove('hidden');
-    el('menuView').classList.remove('hidden');
-  };
+}
+
+/* ========== 音 (フェーズC本格対応、今は最小限のミュート) ========== */
+const SOUND = { on:false };
+$('soundBtn').addEventListener('click', () => {
+  SOUND.on = !SOUND.on;
+  $('soundBtn').textContent = SOUND.on ? '🔊' : '🔇';
+});
+
+/* ========== オープニング: タイトル文字を1文字ずつアニメで ========== */
+(function buildTitle(){
+  const text = 'オモチの まなび ぼうけん';
+  const stage = $('titleText');
+  let delay = 0;
+  for (const ch of text) {
+    const span = document.createElement('span');
+    span.className = 'ch' + (ch === ' ' ? ' sp' : '');
+    span.textContent = ch === ' ' ? ' ' : ch;
+    span.style.animationDelay = (0.4 + delay*0.06) + 's';
+    stage.appendChild(span);
+    delay++;
+  }
 })();
+
+/* ========== 背景パーティクル生成 ========== */
+(function buildParticles(){
+  const wrap = $('particles');
+  const n = 18;
+  for (let i=0; i<n; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = rnd(0,100) + '%';
+    p.style.animationDelay = (Math.random()*8) + 's';
+    p.style.animationDuration = (6 + Math.random()*5) + 's';
+    p.style.background = ['#e8c97a','#48e0d0','#ff7aa8'][rnd(0,2)];
+    p.style.boxShadow = `0 0 10px ${p.style.background}`;
+    wrap.appendChild(p);
+  }
+})();
+
+/* オープニングのオモチを反映 (絵文字 or 画像) */
+$('openerChar').innerHTML = omochi('idle');
+
+/* ========== 画面切替 ========== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+$('startBtn').addEventListener('click', () => {
+  showScreen('select');
+});
+$('backBtn').addEventListener('click', () => showScreen('select'));
+$('toSelectBtn').addEventListener('click', () => showScreen('select'));
+
+/* マップ選択 → board */
+document.querySelectorAll('.map-card').forEach(card => {
+  card.addEventListener('click', () => {
+    if (card.classList.contains('locked')) return;
+    const map = card.dataset.map;
+    startBoard(map);
+  });
+});
+
+/* ========== すごろくマップ ========== */
+const STAGE = {
+  calc: {
+    name: 'けいさんの くに',
+    cells: 8,
+    color: 'calc',
+    bgNums: ['7','3','8','+','×','5','2','9'],
+    makeQ: makeCalc
+  }
+};
+
+/* 状態 */
+const G = {
+  map: null,
+  pos: 0,          // 0=start, 1..cells=マス番号, cells+1=goal
+  medals: 0,
+  stars: 0,
+  cellPositions: [] // 各マス [x%,y%]
+};
+
+function startBoard(mapKey) {
+  G.map = STAGE[mapKey];
+  G.pos = 0;
+  G.medals = 0;
+  G.stars = 0;
+  $('stageName').textContent = G.map.name;
+  $('medalCount').textContent = '⭐ 0';
+  buildBoard();
+  showScreen('board');
+  // 駒を始点に
+  placePiece();
+  // すすむボタンを「スタート」に
+  $('rollBtn').textContent = '🎲 すすむ';
+}
+
+/* マスの位置を計算（S字に配置） */
+function calcCellPositions(n) {
+  // 縦4段 × 横ジグザグの軌跡
+  const positions = [];
+  // start
+  positions.push([12, 88]);
+  // n cells
+  const rows = Math.ceil(n/2);
+  for (let i=0; i<n; i++) {
+    const row = Math.floor(i/2);
+    const colIdx = i%2;
+    const isRtoL = row % 2 === 1;
+    const xs = isRtoL ? [78,32] : [32,78];
+    const x = xs[colIdx];
+    // y: 75→25 で rows 段
+    const y = 75 - row*(50/(rows>1?rows-1:1)) * (rows>1?1:0);
+    positions.push([x, y]);
+  }
+  // goal
+  positions.push([88, 12]);
+  return positions;
+}
+
+function buildBoard() {
+  const area = $('boardArea');
+  // 既存のマス・旗・駒を削除（svg と背景数字は残す）
+  area.querySelectorAll('.cell,.flag,.piece,.calc-bg-num').forEach(e => e.remove());
+  G.cellPositions = calcCellPositions(G.map.cells);
+  // 背景の数字（けいさんの くに 用）
+  G.map.bgNums.forEach((n,i) => {
+    const e = document.createElement('div');
+    e.className = 'calc-bg-num';
+    e.textContent = n;
+    e.style.left = (10 + (i*15)%80) + '%';
+    e.style.top = (10 + (i*23)%75) + '%';
+    e.style.transform = `rotate(${rnd(-25,25)}deg) scale(${(0.8+Math.random()*0.6).toFixed(2)})`;
+    area.appendChild(e);
+  });
+  // 道（SVG path）
+  const svg = $('pathSvg');
+  svg.innerHTML = '';
+  let d = '';
+  G.cellPositions.forEach((p,i) => {
+    d += (i===0 ? 'M' : 'L') + ' ' + p[0] + ' ' + p[1] + ' ';
+  });
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke','rgba(232,201,122,.4)');
+  path.setAttribute('stroke-width','2');
+  path.setAttribute('stroke-dasharray','3 3');
+  path.setAttribute('stroke-linecap','round');
+  path.setAttribute('vector-effect','non-scaling-stroke');
+  svg.appendChild(path);
+  // スタート旗
+  const startFlag = document.createElement('div');
+  startFlag.className = 'flag start';
+  startFlag.textContent = '🚩';
+  startFlag.style.left = G.cellPositions[0][0] + '%';
+  startFlag.style.top  = G.cellPositions[0][1] + '%';
+  area.appendChild(startFlag);
+  // ゴール旗
+  const goalFlag = document.createElement('div');
+  goalFlag.className = 'flag goal';
+  goalFlag.textContent = '🏁';
+  goalFlag.style.left = G.cellPositions[G.cellPositions.length-1][0] + '%';
+  goalFlag.style.top  = G.cellPositions[G.cellPositions.length-1][1] + '%';
+  area.appendChild(goalFlag);
+  // マス
+  for (let i=1; i<=G.map.cells; i++) {
+    const c = document.createElement('div');
+    c.className = 'cell';
+    c.dataset.idx = i;
+    c.textContent = i;
+    c.style.left = G.cellPositions[i][0] + '%';
+    c.style.top  = G.cellPositions[i][1] + '%';
+    area.appendChild(c);
+  }
+  // 駒
+  const piece = document.createElement('div');
+  piece.className = 'piece idle';
+  piece.id = 'piece';
+  piece.innerHTML = omochi('idle');
+  area.appendChild(piece);
+}
+
+function placePiece() {
+  const piece = $('piece');
+  if (!piece) return;
+  const [x,y] = G.cellPositions[G.pos];
+  piece.style.left = x + '%';
+  piece.style.top  = y + '%';
+  // current 表示
+  document.querySelectorAll('.cell').forEach(c => c.classList.remove('current'));
+  if (G.pos >= 1 && G.pos <= G.map.cells) {
+    const cell = document.querySelector(`.cell[data-idx="${G.pos}"]`);
+    if (cell) cell.classList.add('current');
+  }
+}
+
+/* すすむ ボタン: 次のマスへ移動 → クイズ */
+$('rollBtn').addEventListener('click', () => {
+  if (G.pos >= G.map.cells + 1) return; // すでにゴール
+  G.pos++;
+  placePiece();
+  // ゴールの場合
+  if (G.pos === G.map.cells + 1) {
+    setTimeout(() => showClear(), 700);
+    return;
+  }
+  // それ以外: 0.6秒後にクイズ
+  setTimeout(() => openQuiz(), 600);
+});
+
+/* ========== クイズ ========== */
+let currentQ = null;
+function openQuiz() {
+  currentQ = G.map.makeQ();
+  $('quizQ').textContent = currentQ.text;
+  $('quizFeedback').textContent = '';
+  $('quizChar').innerHTML = omochi('think');
+  const wrap = $('quizChoices');
+  wrap.innerHTML = '';
+  currentQ.choices.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'choice';
+    b.textContent = c;
+    b.addEventListener('click', () => handleAnswer(b, c));
+    wrap.appendChild(b);
+  });
+  showScreen('quiz');
+}
+function handleAnswer(btn, val) {
+  // 既に答えていたら無視
+  if (document.querySelector('.choice.correct,.choice.wrong')) return;
+  const correct = (val === currentQ.ans);
+  if (correct) {
+    btn.classList.add('correct');
+    $('quizFeedback').textContent = 'やった！ ⭐+1';
+    $('quizFeedback').className = 'quiz-feedback feedback-good';
+    $('quizChar').innerHTML = omochi('happy');
+    G.medals++;
+    G.stars++;
+    $('medalCount').textContent = '⭐ ' + G.medals;
+    burstStars();
+    setTimeout(() => {
+      showScreen('board');
+      // クイズ閉じたら、ゴール到達 or 続行を判定
+      if (G.pos === G.map.cells) {
+        // 次のすすむでゴール
+      }
+    }, 900);
+  } else {
+    btn.classList.add('wrong');
+    // 正解ボタンを示す
+    document.querySelectorAll('.choice').forEach(b => {
+      if (b.textContent === currentQ.ans) b.classList.add('correct');
+    });
+    $('quizFeedback').textContent = 'こたえ：' + currentQ.ans;
+    $('quizFeedback').className = 'quiz-feedback feedback-bad';
+    $('quizChar').innerHTML = omochi('sad');
+    // ハーフ進む扱い（=ペナルティなし、進む）
+    setTimeout(() => {
+      showScreen('board');
+    }, 1500);
+  }
+}
+
+/* 正解時の星演出 */
+function burstStars() {
+  const burst = document.createElement('div');
+  burst.className = 'star-burst';
+  document.body.appendChild(burst);
+  const stars = ['⭐','✨','🌟','💫'];
+  for (let i=0; i<8; i++) {
+    const s = document.createElement('div');
+    s.className = 's';
+    s.textContent = stars[i%stars.length];
+    const a = (i/8) * Math.PI * 2;
+    s.style.setProperty('--dx', Math.cos(a)*140 + 'px');
+    s.style.setProperty('--dy', Math.sin(a)*140 + 'px');
+    s.style.animationDelay = (i*0.04) + 's';
+    burst.appendChild(s);
+  }
+  setTimeout(() => burst.remove(), 1100);
+}
+
+/* ========== クリア画面 ========== */
+function showClear() {
+  $('clearChar').innerHTML = omochi('cheer');
+  // 星評価: メダル6+ で星3、4-5 で星2、それ以下で星1
+  const starCount = G.medals >= 6 ? 3 : G.medals >= 4 ? 2 : 1;
+  const row = $('starsRow');
+  row.innerHTML = '';
+  for (let i=0; i<3; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.textContent = '⭐';
+    row.appendChild(s);
+  }
+  $('clearMedal').textContent = `あつめた メダル： ${G.medals} / ${G.map.cells}`;
+  showScreen('clear');
+  // 紙吹雪
+  const cf = $('confetti');
+  cf.innerHTML = '';
+  const colors = ['#e8c97a','#48e0d0','#ff7aa8','#5fc97a','#f0a847'];
+  for (let i=0; i<32; i++) {
+    const e = document.createElement('div');
+    e.className = 'conf';
+    e.style.left = rnd(0,100) + '%';
+    e.style.background = colors[i%colors.length];
+    e.style.animationDelay = (Math.random()*0.8) + 's';
+    e.style.animationDuration = (2 + Math.random()*1.5) + 's';
+    cf.appendChild(e);
+  }
+  // 星を順番に点灯
+  const allStars = row.querySelectorAll('.star');
+  for (let i=0; i<starCount; i++) {
+    setTimeout(() => allStars[i].classList.add('on'), 600 + i*350);
+  }
+}
+
+$('againBtn').addEventListener('click', () => startBoard('calc'));
+
+/* ========== iOS 100vh 対策 ========== */
+function setVH(){ document.documentElement.style.setProperty('--vh', (window.innerHeight*0.01)+'px'); }
+setVH();
+window.addEventListener('resize', setVH);
+window.addEventListener('orientationchange', setVH);
 </script>
 </body>
 </html>
