@@ -184,13 +184,22 @@
   .board-area{position:relative;width:100%;flex:1;max-width:480px;margin:0 auto;}
   .path-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
   .cell{
-    position:absolute;width:56px;height:56px;border-radius:50%;
+    position:absolute;width:min(13vw,46px);height:min(13vw,46px);border-radius:50%;
     background:radial-gradient(circle at 30% 30%, var(--brass-l), var(--brass) 60%, var(--brass-d));
     border:3px solid var(--brass-d);
     display:flex;align-items:center;justify-content:center;
-    font-weight:900;font-size:22px;color:var(--ink);
-    box-shadow:0 4px 0 var(--brass-d), 0 8px 16px rgba(0,0,0,.6), inset 0 -3px 8px rgba(0,0,0,.3);
+    font-weight:900;font-size:min(4.5vw,18px);color:var(--ink);
+    box-shadow:0 3px 0 var(--brass-d), 0 6px 12px rgba(0,0,0,.6), inset 0 -3px 6px rgba(0,0,0,.3);
     transform:translate(-50%,-50%);
+  }
+  .cell.bonus{
+    background:radial-gradient(circle at 30% 30%, #ffeeaa, #f0a847 60%, #b07020);
+    border-color:#b07020; color:#3a2810; font-size:min(5.5vw,22px);
+    animation:bonus-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes bonus-pulse{
+    0%,100%{box-shadow:0 3px 0 #b07020, 0 6px 12px rgba(0,0,0,.6), 0 0 0 0 rgba(255,200,80,.6), inset 0 -3px 6px rgba(0,0,0,.3);}
+    50%{box-shadow:0 3px 0 #b07020, 0 6px 12px rgba(0,0,0,.6), 0 0 0 10px rgba(255,200,80,0), inset 0 -3px 6px rgba(0,0,0,.3);}
   }
   .cell.done{background:radial-gradient(circle at 30% 30%, #d8d8d8, #888);border-color:#555;color:#444;}
   .cell.current{animation:cell-glow 1.2s ease-in-out infinite;}
@@ -445,7 +454,7 @@ const CHAR_CONFIG = {
     happy: 'happy.png',
     think: 'think.png',
     sad:   'sad.png',
-    cheer: 'cheer.png'
+    cheer: 'happy.png'   // 顔欠け回避のため happy 流用（クリアの「大喜び」にも意味的に合う）
   }
 };
 function omochi(expression='idle') {
@@ -475,7 +484,23 @@ const SHAKAI = [
   {q:'火事の とき 来てくれるのは？', a:'しょうぼうしょ', w:['けいさつしょ','市やくしょ','びょういん']},
   {q:'事けんや 事こで たすけてくれるのは？', a:'けいさつしょ', w:['しょうぼうしょ','ゆうびん局','学校']},
   {q:'地図で 上の ほうほうは ふつう どっち？', a:'北', w:['南','東','西']},
-  {q:'瀬戸内海を わたって 岡山と 香川を つなぐ 大きな はしは？', a:'瀬戸大橋', w:['明石海きょう大橋','レインボーブリッジ','日本橋']}
+  {q:'瀬戸内海を わたって 岡山と 香川を つなぐ 大きな はしは？', a:'瀬戸大橋', w:['明石海きょう大橋','レインボーブリッジ','日本橋']},
+  {q:'瀬戸内海に めんしている 岡山県の 気候の とくちょうは？', a:'晴れの日が 多い', w:['雨が とても 多い','雪が とても 多い','一年中 さむい']},
+  {q:'岡山県で さかんに つくられている 白い 花の さく 植物は？', a:'い草（たたみの 原料）', w:['お茶','コーヒー','さとうきび']},
+  {q:'日本で いちばん 大きい 湖は？', a:'びわ湖', w:['十和田湖','かすみがうら','宍道湖']},
+  {q:'日本で いちばん 高い 山は？', a:'富士山', w:['北岳','やり岳','立山']},
+  {q:'日本の 首都（しゅと）は どこ？', a:'東京', w:['大阪','京都','岡山']},
+  {q:'地図で 海や 川を あらわす 色は？', a:'青', w:['みどり','茶色','赤']},
+  {q:'地図で 高い 山を あらわす 色は？', a:'茶色', w:['青','白','むらさき']},
+  {q:'「卍（まんじ）」の 地図記号は 何を あらわす？', a:'お寺', w:['神社','学校','病院']},
+  {q:'「鳥居（とりい）」の 形の 地図記号は？', a:'神社', w:['お寺','びょういん','こうじょう']},
+  {q:'びょういんを あらわす 地図記号の 中に ある マークは？', a:'十字（プラス）', w:['ほし','ハート','さんかく']},
+  {q:'ゴミを へらす 3つの R。「もう一度 つかう」は？', a:'リユース', w:['リデュース','リサイクル','リバース']},
+  {q:'びんや かんを とかして 新しい ものに 作りかえることを 何という？', a:'リサイクル', w:['リユース','リデュース','リフォーム']},
+  {q:'わたしたちの 県を おさめる 役所の トップを 何という？', a:'知事（ちじ）', w:['市長','大臣','社長']},
+  {q:'市の せいじを 話し合って 決める 場所は？', a:'市議会（しぎかい）', w:['国会','さいばんしょ','けいさつ']},
+  {q:'むかし、岡山の おしろは 黒い かべから 何と よばれた？', a:'烏城（うじょう／カラスじょう）', w:['白すぎじょう','金のしろ','赤いしろ']},
+  {q:'雨水や つかった 水を ながす、地下の 大きな 管を 何という？', a:'下水道（げすいどう）', w:['水道管','ガス管','電線']}
 ];
 const RIKA = [
   {q:'水を ひやして こおらせると 何に なる？', a:'氷（こおり）', w:['水じょう気','ゆげ','あわ']},
@@ -493,7 +518,24 @@ const RIKA = [
   {q:'うでを まげるとき うごく かたい ものは？', a:'ほね と きん肉', w:['ひふだけ','血だけ','空気']},
   {q:'ほねと ほねの つなぎめで まがる ところを 何という？', a:'関節（かんせつ）', w:['ひふ','けっかん','しんぞう']},
   {q:'すずしくなると ツバメは どうする？', a:'あたたかい 南へ いく', w:['冬みんする','色がかわる','地中にもぐる']},
-  {q:'温度を はかる どうぐは？', a:'温度計', w:['ものさし','はかり','時計']}
+  {q:'温度を はかる どうぐは？', a:'温度計', w:['ものさし','はかり','時計']},
+  {q:'豆電球が 光るのは 何が 流れているから？', a:'電気（電流）', w:['水','空気','音']},
+  {q:'電気の 通り道が 1本の わ に なっていることを 何という？', a:'回路（かいろ）', w:['電池','スイッチ','モーター']},
+  {q:'スイッチを 切ると 電気は どうなる？', a:'流れなくなる', w:['もっと 流れる','たまる','音が 出る']},
+  {q:'方位じしんの はりは いつも どの ほうこうを さす？', a:'北と 南', w:['東と 西','上と 下','右と 左']},
+  {q:'同じ きょくどうしの じしゃくを 近づけると どうなる？', a:'しりぞけ合う（はなれる）', w:['くっつく','光る','音が 出る']},
+  {q:'ちがう きょくどうしの じしゃくは？', a:'引き合う（くっつく）', w:['はなれる','こわれる','消える']},
+  {q:'水を ぐつぐつ わかすと 出てくる あわの 正体は？', a:'水じょう気', w:['空気','けむり','どろ']},
+  {q:'まどガラスに ついた 水てきは どこから 来た？', a:'空気中の 水じょう気', w:['ガラスの 中','雨だけ','土の 中']},
+  {q:'夏の 夜、東の 空に 見える 明るい 3つの 星を 何という？', a:'夏の 大三角', w:['北とせい','オリオン','カシオペヤ']},
+  {q:'星には どんな ちがいが ある？', a:'明るさや 色が ちがう', w:['ぜんぶ 同じ','形が ちがう','音が ちがう']},
+  {q:'ヘチマの たねを まく きせつは？', a:'春', w:['冬','秋の おわり','雪の とき']},
+  {q:'こん虫の 体は いくつの 部分に 分かれている？', a:'3つ（頭・むね・はら）', w:['2つ','4つ','1つ']},
+  {q:'こん虫の あしは 何本？', a:'6本', w:['4本','8本','2本']},
+  {q:'うでを まげのばし できるのは 何が あるから？', a:'きん肉と 関節', w:['ひふ だけ','ほね だけ','血 だけ']},
+  {q:'空気は あたためると 上と 下 どちらへ いく？', a:'上へ いく', w:['下へ いく','よこへ いく','うごかない']},
+  {q:'温度計の 赤い えきが 上がるのは どんな とき？', a:'あたたかい とき', w:['さむい とき','くらい とき','しずかな とき']},
+  {q:'水が こおると、かさ（体積）は どうなる？', a:'少し ふえる', w:['へる','かわらない','消える']}
 ];
 
 /* ========== 計算問題 自動生成（けいさんの くに 用） ========== */
@@ -742,7 +784,7 @@ const STAGE = {
   calc: {
     name: 'けいさんの くに',
     label: 'けいさんの もんだい',
-    cells: 8,
+    cells: 15,
     color: 'calc',
     bgNums: ['7','3','8','+','×','5','2','9'],
     singleColumn: false,
@@ -751,7 +793,7 @@ const STAGE = {
   shakai: {
     name: 'しゃかいの くに',
     label: 'しゃかいの もんだい',
-    cells: 8,
+    cells: 15,
     color: 'shakai',
     bgNums: ['🗾','⛩','🏯','🌸','北','南','東','西'],
     singleColumn: true,
@@ -760,7 +802,7 @@ const STAGE = {
   rika: {
     name: 'りかの くに',
     label: 'りかの もんだい',
-    cells: 8,
+    cells: 15,
     color: 'rika',
     bgNums: ['⭐','🌙','💧','⚡','🔬','🌱','🦋','🌡'],
     singleColumn: true,
@@ -796,27 +838,37 @@ function startBoard(mapKey) {
   $('rollBtn').textContent = '🎲 すすむ';
 }
 
-/* マスの位置を計算（S字に配置） */
+/* マスの位置を計算（多列ジグザグ・15マスまで画面に収まる）
+   total = n + 2 (start + n + goal) を 5列ジグザグで配置 */
 function calcCellPositions(n) {
-  // 縦4段 × 横ジグザグの軌跡
+  const total = n + 2;
+  const colsPerRow = 5;
+  const rows = Math.ceil(total / colsPerRow);
   const positions = [];
-  // start
-  positions.push([12, 88]);
-  // n cells
-  const rows = Math.ceil(n/2);
-  for (let i=0; i<n; i++) {
-    const row = Math.floor(i/2);
-    const colIdx = i%2;
-    const isRtoL = row % 2 === 1;
-    const xs = isRtoL ? [78,32] : [32,78];
-    const x = xs[colIdx];
-    // y: 75→25 で rows 段
-    const y = 75 - row*(50/(rows>1?rows-1:1)) * (rows>1?1:0);
-    positions.push([x, y]);
+  // 横位置: 端から 12〜88%
+  const xs = [];
+  for (let c=0; c<colsPerRow; c++) {
+    xs.push(12 + (76 * c) / (colsPerRow - 1));
   }
-  // goal
-  positions.push([88, 12]);
+  // 縦位置: 上端 8% から 下端 92% で rows 段に等分
+  let placed = 0;
+  for (let r=0; r<rows; r++) {
+    const reverse = (r % 2 === 1);
+    const order = reverse ? xs.slice().reverse() : xs;
+    const y = (rows === 1) ? 50 : 8 + (84 * r) / (rows - 1);
+    for (let c=0; c<colsPerRow && placed<total; c++) {
+      positions.push([order[c], y]);
+      placed++;
+    }
+  }
   return positions;
+}
+
+/* ボーナスマス（？マーク・正解で +2 メダル）の番号を固定で 3 つ選ぶ */
+function bonusCells(n) {
+  // 中盤と終盤に散らす（15マスなら 4, 9, 13）
+  if (n >= 10) return [Math.floor(n*0.27), Math.floor(n*0.60), Math.floor(n*0.87)];
+  return [Math.floor(n*0.5)];
 }
 
 function buildBoard() {
@@ -864,12 +916,14 @@ function buildBoard() {
   goalFlag.style.left = G.cellPositions[G.cellPositions.length-1][0] + '%';
   goalFlag.style.top  = G.cellPositions[G.cellPositions.length-1][1] + '%';
   area.appendChild(goalFlag);
-  // マス
+  // マス（ボーナスマスを 3 箇所マーキング）
+  const bonus = new Set(bonusCells(G.map.cells));
+  G.bonusCells = bonus;
   for (let i=1; i<=G.map.cells; i++) {
     const c = document.createElement('div');
-    c.className = 'cell';
+    c.className = 'cell' + (bonus.has(i) ? ' bonus' : '');
     c.dataset.idx = i;
-    c.textContent = i;
+    c.textContent = bonus.has(i) ? '?' : i;
     c.style.left = G.cellPositions[i][0] + '%';
     c.style.top  = G.cellPositions[i][1] + '%';
     area.appendChild(c);
@@ -940,11 +994,13 @@ function handleAnswer(btn, val) {
   if (correct) {
     se('correct');
     btn.classList.add('correct');
-    $('quizFeedback').textContent = 'やった！ ⭐+1';
+    const isBonus = G.bonusCells && G.bonusCells.has(G.pos);
+    const gain = isBonus ? 2 : 1;
+    $('quizFeedback').textContent = isBonus ? `ボーナス！ ⭐+${gain}` : `やった！ ⭐+${gain}`;
     $('quizFeedback').className = 'quiz-feedback feedback-good';
     $('quizChar').innerHTML = omochi('happy');
-    G.medals++;
-    G.stars++;
+    G.medals += gain;
+    G.stars  += gain;
     $('medalCount').textContent = '⭐ ' + G.medals;
     burstStars();
     setTimeout(() => {
