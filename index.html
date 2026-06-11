@@ -328,20 +328,22 @@
 
   /* ============ フェーズ2: 演出豪華化 ============ */
 
-  /* ①-a オープニング 暗転スタート（z-index:1 で背景レイヤー化）*/
-  #opening::before{
-    content:'';position:absolute;inset:0;background:#000;z-index:1;
-    animation:dim-fade 1.8s ease-out forwards;pointer-events:none;
+  /* ①-a オープニング 暗転（real DOM div で確実に表示）*/
+  .opening-curtain{position:absolute;inset:0;background:#000;z-index:5;opacity:1;pointer-events:none;}
+  .opening-curtain.lifted{opacity:0;transition:opacity 1s ease-out;}
+  /* 歯車：!important を付けると CSS animation の opacity 補間まで上書きしてしまう。
+     source order だけで cascade を勝たせる（L69-71 の opacity:.35 は後の宣言で上書き）*/
+  .gears{z-index:6;}
+  .gear.big, .gear.mid, .gear.sml{opacity:0;animation:none;}
+  .gear.big.intro, .gear.mid.intro, .gear.sml.intro{
+    animation:gear-in 1.1s cubic-bezier(.34,1.56,.64,1) forwards;
   }
-  @keyframes dim-fade{0%{opacity:1;}30%{opacity:.85;}70%{opacity:.35;}100%{opacity:0;}}
-  /* 歯車が1個ずつ噛み合う（z-index:2 で暗転より前。animation-fill-mode:both で初期 opacity:0）*/
-  .gears{z-index:2;}
-  .gear.big{animation:gear-in 1.1s cubic-bezier(.34,1.56,.64,1) .35s both, spin 14s linear infinite 1.45s;}
-  .gear.mid{animation:gear-in 1.1s cubic-bezier(.34,1.56,.64,1) .85s both, spin 9s linear infinite reverse 1.95s;}
-  .gear.sml{animation:gear-in 1.1s cubic-bezier(.34,1.56,.64,1) 1.30s both, spin 5s linear infinite 2.40s;}
+  .gear.big.spinning{animation:spin 14s linear infinite;opacity:.35;}
+  .gear.mid.spinning{animation:spin 9s linear infinite reverse;opacity:.55;}
+  .gear.sml.spinning{animation:spin 5s linear infinite;opacity:.85;}
   @keyframes gear-in{
     0%{opacity:0;transform:scale(.2) rotate(-180deg);}
-    60%{opacity:.75;transform:scale(1.15) rotate(20deg);}
+    60%{opacity:.85;transform:scale(1.15) rotate(20deg);}
     100%{opacity:.4;transform:scale(1) rotate(0);}
   }
   /* 蒸気エフェクト */
@@ -499,6 +501,7 @@
 
 <!-- ============ オープニング ============ -->
 <section class="screen active" id="opening">
+  <div class="opening-curtain" id="curtain"></div>
   <div class="gears">
     <div class="gear big"></div>
     <div class="gear mid"></div>
@@ -897,16 +900,58 @@ $('soundBtn').addEventListener('click', () => {
 /* オープニングのオモチを反映 (絵文字 or 画像) */
 $('openerChar').innerHTML = omochi('idle');
 
-/* オープニングを「再演出」する関数。音 ON 時は歯車音を鳴らす */
-function replayOpening() {
-  // 全 animation を再start するため class toggling
-  const o = $('opening');
-  o.classList.remove('skip');
-  o.style.animation = 'none';
-  void o.offsetWidth;
-  o.style.animation = '';
-  // 歯車噛み合い音（音 ON 時のみ。初回はミュート状態なので無音、トグル ON 後の戻り表示で鳴る）
+/* オープニング演出の順次起動（JavaScript ベース・CSS cascade に依存しない）
+   タイムライン:
+     0    黒幕表示（CSS で curtain.opacity=1 初期）
+     350  大歯車 intro（1.1s 登場演出）
+     700  黒幕 lifted（1s fade out 開始）
+     850  中歯車 intro
+     1300 小歯車 intro
+     1450 大歯車 spinning（spin loop へ）
+     1950 中歯車 spinning
+     2400 小歯車 spinning
+*/
+const OPENING_TIMELINE = [];
+function runOpeningIntro() {
+  const big = document.querySelector('.gear.big');
+  const mid = document.querySelector('.gear.mid');
+  const sml = document.querySelector('.gear.sml');
+  const curtain = document.getElementById('curtain');
+  if (!big || !mid || !sml || !curtain) return;
+  // 各 setTimeout を OPENING_TIMELINE に追跡（後で skip 時に cancel）
+  function s(ms, fn) { OPENING_TIMELINE.push(setTimeout(fn, ms)); }
+  s(350,  () => big.classList.add('intro'));
+  s(700,  () => curtain.classList.add('lifted'));
+  s(850,  () => mid.classList.add('intro'));
+  s(1300, () => sml.classList.add('intro'));
+  // 登場演出完了後に spinning へ（intro animation duration = 1.1s）
+  s(350+1100,  () => { big.classList.remove('intro'); big.classList.add('spinning'); });
+  s(850+1100,  () => { mid.classList.remove('intro'); mid.classList.add('spinning'); });
+  s(1300+1100, () => { sml.classList.remove('intro'); sml.classList.add('spinning'); });
+  // 歯車噛み合い音（音 ON 時のみ）
   if (audioCtx && SOUND.on) playOpeningSounds();
+}
+// ページ読み込み直後に起動
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', runOpeningIntro);
+} else {
+  runOpeningIntro();
+}
+
+/* オープニングを「再演出」する関数（音ON切替時の再生）*/
+function replayOpening() {
+  // 既存タイマー停止＆全 class 削除
+  OPENING_TIMELINE.forEach(t => clearTimeout(t));
+  OPENING_TIMELINE.length = 0;
+  ['big','mid','sml'].forEach(k => {
+    const g = document.querySelector('.gear.' + k);
+    if (g) { g.classList.remove('intro','spinning'); }
+  });
+  const curtain = document.getElementById('curtain');
+  if (curtain) curtain.classList.remove('lifted');
+  $('opening').classList.remove('skip');
+  // 再起動
+  runOpeningIntro();
 }
 
 /* ========== 画面切替 ========== */
